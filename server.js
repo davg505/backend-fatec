@@ -23,6 +23,8 @@ app.use(express.json());
 
 app.use(cors({
   origin: allowedOrigins,
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 const pool = new Pool({
