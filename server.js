@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 3001;
 // ✅ Configura o CORS
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://benurioutlet.github.io'
+  'https://davg505.github.io'
 ];
 
 app.use(compression());
@@ -28,9 +28,64 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-app.get('/api/produtos', async (req, res) => {
+app.get('/api/alunos', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM public.produto');
+    const result = await pool.query('SELECT * FROM public.aluno');
+    res.set('Cache-Control', 'public, max-age=300'); // 5 minutos
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Erro ao buscar produtos:', error);
+    res.status(500).json({ error: 'Erro ao buscar produtos' });
+  }
+});
+
+app.get('/api/dadosfatec', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM public.dadosfatec');
+    res.set('Cache-Control', 'public, max-age=300'); // 5 minutos
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Erro ao buscar produtos:', error);
+    res.status(500).json({ error: 'Erro ao buscar produtos' });
+  }
+});
+
+app.get('/api/dadospessoalaluno', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM public.dadospessoalaluno');
+    res.set('Cache-Control', 'public, max-age=300'); // 5 minutos
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Erro ao buscar produtos:', error);
+    res.status(500).json({ error: 'Erro ao buscar produtos' });
+  }
+});
+
+app.get('/api/empresa', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM public.empresa');
+    res.set('Cache-Control', 'public, max-age=300'); // 5 minutos
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Erro ao buscar produtos:', error);
+    res.status(500).json({ error: 'Erro ao buscar produtos' });
+  }
+});
+
+app.get('/api/empresaaluno', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM public.empresaaluno');
+    res.set('Cache-Control', 'public, max-age=300'); // 5 minutos
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Erro ao buscar produtos:', error);
+    res.status(500).json({ error: 'Erro ao buscar produtos' });
+  }
+});
+
+app.get('/api/estagio', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM public.estagio');
     res.set('Cache-Control', 'public, max-age=300'); // 5 minutos
     res.json(result.rows);
   } catch (error) {
