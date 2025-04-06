@@ -30,29 +30,43 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-// acesso ao login do aluno
-app.post('/api/login/aluno', async (req, res) => {
+// acesso ao login 
+app.post('/api/login', async (req, res) => {
   const { email, senha } = req.body;
-  console.log('Email:', email); // Verifique se está recebendo o email corretamente
-  console.log('Senha:', senha); // Verifique se está recebendo a senha corretamente
 
   try {
-    // Buscar o aluno com o email fornecido
+    // Buscar o usuário pelo email fornecido
     const result = await pool.query('SELECT * FROM public.aluno WHERE email = $1', [email]);
-
+    
     if (result.rows.length > 0) {
       const aluno = result.rows[0];
 
-      // Verificar se a senha bate (aqui, seria ideal usar bcrypt para comparação)
+      // Verificar se a senha bate
       if (aluno.senha === senha) {
-        // Senha correta
-        res.json({ success: true, tipo: aluno.tipo }); // tipo pode ser 'aluno' ou 'professor'
-      } else {
-        res.status(401).json({ success: false, message: 'Senha incorreta' });
+        return res.json({
+          success: true,
+          tipo: 'aluno' // Informando que o usuário é aluno
+        });
       }
-    } else {
-      res.status(404).json({ success: false, message: 'Usuário não encontrado' });
     }
+
+    // Caso não seja aluno, tenta buscar como professor
+    const resultProfessor = await pool.query('SELECT * FROM public.professor WHERE email = $1', [email]);
+
+    if (resultProfessor.rows.length > 0) {
+      const professor = resultProfessor.rows[0];
+
+      // Verificar se a senha bate
+      if (professor.senha === senha) {
+        return res.json({
+          success: true,
+          tipo: 'professor' // Informando que o usuário é professor
+        });
+      }
+    }
+
+    res.status(401).json({ success: false, message: 'Usuário ou senha inválidos' });
+
   } catch (error) {
     console.error('Erro ao realizar login:', error);
     res.status(500).json({ success: false, message: 'Erro no servidor' });
