@@ -12,33 +12,44 @@ import jwt from 'jsonwebtoken';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// ✅ CORS
+// ✅ Domínios permitidos
 const allowedOrigins = [
   'http://localhost:5173',
   'https://davg505.github.io',
   'http://localhost:5174'
 ];
 
+// ✅ Middlewares
 app.use(compression());
 app.use(express.json());
 
-app.use(cors({
+// ✅ Configuração CORS
+const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    console.log('Origem da requisição:', origin);
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Não permitido pelo CORS'), false);
+      callback(new Error('Não permitido pelo CORS'));
     }
   },
-}));
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+};
 
-// ✅ Pool de conexão
+app.use(cors(corsOptions));
+
+// ✅ Tratamento de requisições preflight (OPTIONS)
+app.options('*', cors(corsOptions));
+
+// ✅ Pool de conexão PostgreSQL
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
 });
 
-// ✅ Função para verificar token JWT
+// ✅ Verificação de token JWT
 const verificarToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -60,26 +71,16 @@ app.post('/api/login', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM public.aluno WHERE email = $1', [email]);
 
-    if (result.rows.length > 0) {
-      const aluno = result.rows[0];
-
-      if (aluno.senha === senha) {
-        const token = jwt.sign({ email, tipo: 'aluno' }, process.env.JWT_SECRET, { expiresIn: '1h' });
-
-        return res.json({ success: true, tipo: 'aluno', token });
-      }
+    if (result.rows.length > 0 && result.rows[0].senha === senha) {
+      const token = jwt.sign({ email, tipo: 'aluno' }, process.env.JWT_SECRET, { expiresIn: '1h' });
+      return res.json({ success: true, tipo: 'aluno', token });
     }
 
     const resultProfessor = await pool.query('SELECT * FROM public.professor WHERE email = $1', [email]);
 
-    if (resultProfessor.rows.length > 0) {
-      const professor = resultProfessor.rows[0];
-
-      if (professor.senha === senha) {
-        const token = jwt.sign({ email, tipo: 'professor' }, process.env.JWT_SECRET, { expiresIn: '1h' });
-
-        return res.json({ success: true, tipo: 'professor', token });
-      }
+    if (resultProfessor.rows.length > 0 && resultProfessor.rows[0].senha === senha) {
+      const token = jwt.sign({ email, tipo: 'professor' }, process.env.JWT_SECRET, { expiresIn: '1h' });
+      return res.json({ success: true, tipo: 'professor', token });
     }
 
     res.status(401).json({ success: false, message: 'Usuário ou senha inválidos' });
@@ -162,7 +163,7 @@ app.get('/api/estagio', verificarToken, async (req, res) => {
   }
 });
 
-// ✅ Iniciar servidor
+// ✅ Iniciar o servidor
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
