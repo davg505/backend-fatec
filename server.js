@@ -19,6 +19,8 @@ const allowedOrigins = [
 
 app.use(compression());
 
+app.use(express.json());
+
 app.use(cors({
   origin: allowedOrigins,
 }));
@@ -28,6 +30,37 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
+// acesso ao login do aluno
+app.post('/api/login/aluno', async (req, res) => {
+  const { email, senha } = req.body;
+  console.log('Email:', email); // Verifique se está recebendo o email corretamente
+  console.log('Senha:', senha); // Verifique se está recebendo a senha corretamente
+
+  try {
+    // Buscar o aluno com o email fornecido
+    const result = await pool.query('SELECT * FROM public.aluno WHERE email = $1', [email]);
+
+    if (result.rows.length > 0) {
+      const aluno = result.rows[0];
+
+      // Verificar se a senha bate (aqui, seria ideal usar bcrypt para comparação)
+      if (aluno.senha === senha) {
+        // Senha correta
+        res.json({ success: true, tipo: aluno.tipo }); // tipo pode ser 'aluno' ou 'professor'
+      } else {
+        res.status(401).json({ success: false, message: 'Senha incorreta' });
+      }
+    } else {
+      res.status(404).json({ success: false, message: 'Usuário não encontrado' });
+    }
+  } catch (error) {
+    console.error('Erro ao realizar login:', error);
+    res.status(500).json({ success: false, message: 'Erro no servidor' });
+  }
+});
+
+
+// acesso a tabela aluno 
 app.get('/api/alunos', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM public.aluno');
