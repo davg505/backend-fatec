@@ -27,7 +27,7 @@ app.use(express.json());
 
 app.use(cors({
   origin: allowedOrigins,
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST', 'PUT'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
@@ -109,6 +109,322 @@ app.post('/api/login', async (req, res) => {
 });
 
 
+// Acesso à tabela aluno pelo login
+app.get('/api/aluno', verificarToken, async (req, res) => {
+  try {
+    const { id } = req.usuario; // Decodificado pelo middleware
+
+    const result = await pool.query(
+      `SELECT 
+          ea.*, 
+          e.cpf AS cpf, 
+          e.rg AS rg, 
+          e.cep AS cep,
+          e.endereco AS endereco,
+          e.cidade AS cidade
+        FROM public.aluno ea
+        JOIN public.dadospessoalaluno e ON ea.id = e.aluno_id
+        WHERE ea.id = $1`,
+      [id]
+    );
+
+    res.json(result.rows[0]); // Retorna apenas um aluno
+  } catch (error) {
+    console.error('Erro ao buscar aluno:', error);
+    res.status(500).json({ error: 'Erro ao buscar aluno' });
+  }
+});
+
+
+// Acesso à tabela dados estagio pelo login do aluno
+app.get('/api/dados_estagio', verificarToken, async (req, res) => {
+  try {
+    const { id } = req.usuario; // Decodificado pelo middleware
+
+    const result = await pool.query(
+      'SELECT * FROM public.estagio WHERE aluno_id = $1',
+      [id]
+    );
+
+    res.json(result.rows[0]); // Retorna apenas um aluno
+  } catch (error) {
+    console.error('Erro ao buscar estagio:', error);
+    res.status(500).json({ error: 'Erro ao buscar dados estagio' });
+  }
+});
+
+
+
+// Acesso à tabela dados estagio pelo login do aluno
+app.get('/api/dados_empresa', verificarToken, async (req, res) => {
+  try {
+    const { id } = req.usuario; // Decodificado pelo middleware
+
+    const result = await pool.query(
+      `SELECT 
+         ea.*, 
+         e.nome_empresa AS nome_empresa, 
+         e.endereco AS endereco, 
+         e.local AS local 
+       FROM public.empresaaluno ea
+       JOIN public.empresa e ON ea.empresa_id = e.id
+       WHERE ea.aluno_id = $1`,
+      [id]
+    );
+
+    res.json(result.rows[0]); // Retorna os dados combinados
+  } catch (error) {
+    console.error('Erro ao buscar dados da empresa:', error);
+    res.status(500).json({ error: 'Erro ao buscar dados da empresa' });
+  }
+});
+
+
+// Acesso à tabela dados estagio info
+app.get('/api/dados_estagio_info', verificarToken, async (req, res) => {
+  try {
+    const { id } = req.usuario; // Decodificado pelo middleware
+
+    const result = await pool.query(
+      'SELECT * FROM public.dados_estagio WHERE aluno_id = $1',
+      [id]
+    );
+
+    res.json(result.rows[0]); // Retorna apenas um aluno
+  } catch (error) {
+    console.error('Erro ao buscar estagio:', error);
+    res.status(500).json({ error: 'Erro ao buscar dados estagio' });
+  }
+});
+
+
+
+// faz atualização dos dados do representante. 
+app.put('/api/atualizacao_representante', verificarToken, async (req, res) => {
+  try {
+    const { id } = req.usuario; // aluno_id extraído do token
+    const { nome_representante, cargo_funcao, cpf_representante } = req.body;
+
+    const result = await pool.query(
+      `UPDATE public.empresaaluno
+       SET nome_representante = $1,
+           cargo_funcao = $2,
+           cpf_representante = $3
+       WHERE aluno_id = $4
+       RETURNING *`,
+      [nome_representante, cargo_funcao, cpf_representante, id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Dados da empresa não encontrados para o aluno.' });
+    }
+
+    res.status(200).json(result.rows[0]);
+  } catch (error) {
+    console.error('Erro ao atualizar dados do representante:', error);
+    res.status(500).json({ error: 'Erro ao atualizar dados do representante.' });
+  }
+});
+
+
+// Faz atualização dos dados do aluno.
+app.put('/api/atualizacao_dados_aluno', verificarToken, async (req, res) => {
+  try {
+    const { id } = req.usuario; // aluno_id extraído do token
+    const { cep, endereco, cidade, telefone } = req.body;
+
+    // Atualiza tabela dadospessoalaluno
+    const resultDados = await pool.query(
+      `UPDATE public.dadospessoalaluno
+       SET cep = $1,
+           endereco = $2,
+           cidade = $3
+       WHERE aluno_id = $4
+       RETURNING *`,
+      [cep, endereco, cidade, id]
+    );
+
+    // Atualiza tabela aluno
+    const resultAluno = await pool.query(
+      `UPDATE public.aluno
+       SET telefone = $1
+       WHERE id = $2
+       RETURNING *`,
+      [telefone, id]
+    );
+
+    if (resultDados.rowCount === 0 || resultAluno.rowCount === 0) {
+      return res.status(404).json({ error: 'Dados do aluno não encontrados.' });
+    }
+
+    // Retorna os dados atualizados das duas tabelas
+    res.status(200).json({
+      dadosPessoaisAtualizados: resultDados.rows[0],
+      alunoAtualizado: resultAluno.rows[0],
+    });
+  } catch (error) {
+    console.error('Erro ao atualizar dados do aluno:', error);
+    res.status(500).json({ error: 'Erro ao atualizar dados do aluno.' });
+  }
+});
+
+// solicitação estagio 
+app.post('/api/solicitacao_estagio', verificarToken, async (req, res) => {
+  try {
+    const { id } = req.usuario; // aluno_id extraído do token
+    const { time_de_estagio, modelo, data_inicial, data_final } = req.body;
+
+    // Inserir na tabela estagio_solicitacao
+    const resultSolicitacao = await pool.query(
+      `INSERT INTO public.estagio_solicitacao 
+        (aluno_id, time_de_estagio, modelo, data_inicial_estagio, data_final_estagio) 
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [id, time_de_estagio, modelo, data_inicial, data_final]
+    );
+
+    // Inserir na tabela estagio
+    const resultEstagio = await pool.query(
+      `INSERT INTO public.estagio 
+        (aluno_id, status, tipo_de_estagio, modelo, solicitacao, data_solicitacao,
+         status_do_termo, prorrogacao_periodo, transicao_do_obrigatorio,
+         rescisao_termo, relatorio_estagio, ficha_avaliacao)
+       VALUES 
+        ($1, $2, $3, $4, $5, CURRENT_DATE, $6, $7, $8, $9, $10, $11)
+       RETURNING *`,
+      [
+        id,
+        'Pendente', // status
+        time_de_estagio,
+        modelo,
+        'Solicitado',
+        'Pendente',
+        'Não',
+        'Não',
+        'Não',
+        'Não',
+        'Não'
+      ]
+    );
+
+    
+      // Atualiza tabela aluno
+      const resultAluno = await pool.query(
+        `UPDATE public.aluno
+        SET modalidade = $1,
+            status = $2
+        WHERE id = $3
+        RETURNING *`,
+        ['Estagio', 'Ativo', id]
+      );
+
+    res.status(201).json({
+      solicitacao: resultSolicitacao.rows[0],
+      estagio: resultEstagio.rows[0],
+      alunoAtualizado: resultAluno.rows[0]
+
+    });
+
+  } catch (error) {
+    console.error('Erro ao inserir solicitação de estágio:', error);
+    res.status(500).json({ error: 'Erro ao inserir solicitação de estágio.' });
+  }
+});
+
+
+
+
+app.post('/api/add_dados_empresa', verificarToken, async (req, res) => {
+  try {
+    const { id } = req.usuario; // aluno_id extraído do token
+    const { nome_empresa, cnpj, endereco, local, estado, nome_representante, cargo_funcao, cpf_representante } = req.body;
+
+    // Verificar se o CNPJ já está cadastrado
+    const empresaExistente = await pool.query(
+      'SELECT id FROM public.empresa WHERE cnpj = $1',
+      [cnpj]
+    );
+
+    let empresa_id;
+
+    if (empresaExistente.rows.length > 0) {
+      // Empresa já existe, usar o id existente
+      empresa_id = empresaExistente.rows[0].id;
+    } else {
+      // Empresa não existe, inserir nova
+      const resultAdicionarEmpresa = await pool.query(
+        `INSERT INTO public.empresa
+          (nome_empresa, cnpj, endereco, local, estado) 
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id`,
+        [nome_empresa, cnpj, endereco, local, estado]
+      );
+
+      empresa_id = resultAdicionarEmpresa.rows[0].id;
+    }
+
+    // Inserir na tabela representante (empresaaluno)
+    const resultEstagio = await pool.query(
+      `INSERT INTO public.empresaaluno
+        (aluno_id, empresa_id, nome_representante, cargo_funcao, cpf_representante)
+       VALUES 
+        ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [
+        id, empresa_id, nome_representante, cargo_funcao, cpf_representante
+      ]
+    );
+
+    res.status(201).json({
+      mensagem: 'Empresa e representante cadastrados com sucesso!',
+      empresa: empresa_id,
+      representante: resultEstagio.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Erro ao inserir dados da empresa e representante:', error);
+    res.status(500).json({ error: 'Erro ao inserir dados da empresa e representante.' });
+  }
+});
+
+
+
+//adicionar dados do estagio 
+app.post('/api/add_dados_estagio', verificarToken, async (req, res) => {
+  try {
+    const { id } = req.usuario; // aluno_id extraído do token
+    const {valor,  horas_semanais, horas_entrada, horas_saida, horas_refeicao } = req.body;
+
+    // Inserir na tabela representante (empresaaluno)
+    const resultDadosEstagio = await pool.query(
+      `INSERT INTO public.dados_estagio
+        (aluno_id, valor, horas_semanais, horas_entrada, horas_saida, horas_refeicao )
+       VALUES 
+        ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [
+        id, valor,  horas_semanais, horas_entrada, horas_saida, horas_refeicao
+      ]
+    );
+
+    res.status(201).json({
+      dados_estagio: resultDadosEstagio.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Erro ao inserir dados da estagio:', error);
+    res.status(500).json({ error: 'Erro ao inserir dados estagio.' });
+  }
+});
+
+
+    
+
+
+
+
+
+
 // acesso a tabela aluno 
 app.get('/api/alunos', async (req, res) => {
   try {
@@ -131,24 +447,6 @@ app.get('/api/dadosfatec', async (req, res) => {
     res.status(500).json({ error: 'Erro ao buscar produtos' });
   }
 });
-
-// Acesso à tabela aluno pelo login
-app.get('/api/aluno', verificarToken, async (req, res) => {
-  try {
-    const { id } = req.usuario; // Decodificado pelo middleware
-
-    const result = await pool.query(
-      'SELECT * FROM public.aluno WHERE id = $1',
-      [id]
-    );
-
-    res.json(result.rows[0]); // Retorna apenas um aluno
-  } catch (error) {
-    console.error('Erro ao buscar aluno:', error);
-    res.status(500).json({ error: 'Erro ao buscar aluno' });
-  }
-});
-
 
 app.get('/api/dadospessoalaluno', async (req, res) => {
   try {
