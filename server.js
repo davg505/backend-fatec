@@ -165,7 +165,8 @@ app.get('/api/dados_empresa', verificarToken, async (req, res) => {
          ea.*, 
          e.nome_empresa AS nome_empresa, 
          e.endereco AS endereco, 
-         e.local AS local 
+         e.local AS local,
+         e.cnpj AS cnpj
        FROM public.empresaaluno ea
        JOIN public.empresa e ON ea.empresa_id = e.id
        WHERE ea.aluno_id = $1`,
@@ -196,6 +197,48 @@ app.get('/api/dados_estagio_info', verificarToken, async (req, res) => {
     res.status(500).json({ error: 'Erro ao buscar dados estagio' });
   }
 });
+
+
+// Acesso à tabela dados aluno em relação com fatec 
+app.get('/api/dados_fatec_aluno', verificarToken, async (req, res) => {
+  try {
+    const { id } = req.usuario; // Decodificado pelo middleware
+
+    const result = await pool.query(
+      `SELECT 
+         ea.*, 
+         e.cidade AS cidade, 
+         e.endereco AS endereco 
+       FROM public.dados_fatec_aluno ea
+       JOIN public.dadosfatec e ON ea.dadosfatec_id = e.id
+       WHERE ea.aluno_id = $1`,
+      [id]
+    );
+
+    res.json(result.rows[0]); // Retorna apenas um aluno
+  } catch (error) {
+    console.error('Erro ao buscar dados fatec:', error);
+    res.status(500).json({ error: 'Erro ao buscar dados fatec' });
+  }
+});
+
+
+  // Acesso à tabela dados da solicitação
+  app.get('/api/estagio_solicitacao', verificarToken, async (req, res) => {
+    try {
+      const { id } = req.usuario; // Decodificado pelo middleware
+
+      const result = await pool.query(
+        'SELECT * FROM public.estagio_solicitacao WHERE aluno_id = $1',
+        [id]
+      );
+
+      res.json(result.rows[0]); // Retorna apenas um aluno
+    } catch (error) {
+      console.error('Erro ao buscar estagio:', error);
+      res.status(500).json({ error: 'Erro ao buscar dados estagio' });
+    }
+  });
 
 
 
@@ -495,3 +538,99 @@ app.get('/api/estagio', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
+
+
+
+// I cientifica
+
+//adiciona iC
+app.post('/api/solicitacao_ic', verificarToken, async (req, res) => {
+  try {
+    const { id } = req.usuario; // aluno_id extraído do token
+    const {
+      instituicao_centro_pesquisa, tema, data_inicial, data_final,
+      orientador, horario, dias_da_semana, descricao_atividade
+    } = req.body;
+
+    // Validação: campos obrigatórios
+    if (!instituicao_centro_pesquisa || !tema || !data_inicial || !data_final || !orientador) {
+      return res.status(400).json({ error: 'Campos obrigatórios não foram preenchidos.' });
+    }
+
+    // Atualiza tabela aluno
+    const alterarModificacaoAluno = await pool.query(
+      `UPDATE public.aluno
+       SET modalidade = $1
+       WHERE id = $2
+       RETURNING *`,
+      ['I. Cientifica', id]
+    );
+
+    // Inserir dados na tabela dados_i_cientifico
+    const dadosIC = await pool.query(
+      `INSERT INTO public.dados_i_cientifico
+        (aluno_id, instituicao_centro_pesquisa, tema, data_inicial, data_final, 
+         orientador, horario, dias_da_semana, descricao_atividade)
+       VALUES 
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [
+        id, instituicao_centro_pesquisa, tema, data_inicial, data_final,
+        orientador, horario, dias_da_semana, descricao_atividade
+      ]
+    );
+
+    if (alterarModificacaoAluno.rowCount === 0 || dadosIC.rowCount === 0) {
+      return res.status(404).json({ error: 'Dados do aluno não encontrados.' });
+    }
+
+    res.status(200).json({
+      alterarModificacaoAluno: alterarModificacaoAluno.rows[0],
+      alunoAtualizado: dadosIC.rows[0],
+    });
+  } catch (error) {
+    console.error('Erro ao atualizar dados do aluno:', error);
+    res.status(500).json({ error: 'Erro ao atualizar dados do aluno.' });
+  }
+});
+
+
+
+
+//retira  iC
+app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
+  try {
+    const { id } = req.usuario; // aluno_id extraído do token
+
+    // Atualiza tabela aluno
+    const alterarModificacaoAluno = await pool.query(
+      `UPDATE public.aluno
+       SET modalidade = $1
+       WHERE id = $2
+       RETURNING *`,
+      ['Sem modalidade', id]
+    );
+
+    // Remove os dados da tabela dados_i_cientifico
+    const dadosIC = await pool.query(
+      `DELETE FROM public.dados_i_cientifico
+       WHERE id = $1
+       RETURNING *`,
+      [id]
+    );
+
+    if (alterarModificacaoAluno.rowCount === 0 || dadosIC.rowCount === 0) {
+      return res.status(404).json({ error: 'Dados do aluno não encontrados.' });
+    }
+
+    res.status(200).json({
+      alunoAtualizado: alterarModificacaoAluno.rows[0],
+      dadosIcRemovidos: dadosIC.rows[0],
+    });
+  } catch (error) {
+    console.error('Erro ao cancelar IC:', error);
+    res.status(500).json({ error: 'Erro ao cancelar IC.' });
+  }
+});
+
+
