@@ -1,6 +1,9 @@
-
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import multer from 'multer';
 
 dotenv.config();
 
@@ -11,8 +14,21 @@ import express from 'express';
 import cors from 'cors'; // ✅ importa o CORS
 import compression from 'compression';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+
+// Cria pasta uploads se não existir
+const uploadsPath = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsPath)) {
+  fs.mkdirSync(uploadsPath);
+}
+
+
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+
 
 // ✅ Configura o CORS
 const allowedOrigins = [
@@ -29,6 +45,7 @@ app.use(cors({
   origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
 }));
 
 const pool = new Pool({
@@ -56,6 +73,7 @@ function verificarToken(req, res, next) {
 }
 
   export default verificarToken;
+''
 
 
 
@@ -595,8 +613,6 @@ app.post('/api/solicitacao_ic', verificarToken, async (req, res) => {
 });
 
 
-
-
 //retira  iC
 app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
   try {
@@ -608,7 +624,7 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
        SET modalidade = $1
        WHERE id = $2
        RETURNING *`,
-      ['Sem modalidade', id]
+      ['Sem Modalidade', id]
     );
 
     // Remove os dados da tabela dados_i_cientifico
@@ -632,5 +648,317 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
     res.status(500).json({ error: 'Erro ao cancelar IC.' });
   }
 });
+
+
+    // Cria pasta uploads se não existir
+    const uploadDir = path.join(__dirname, 'uploads');
+    if (!fs.existsSync(path.join(__dirname, 'uploads'))) {
+      fs.mkdirSync(path.join(__dirname, 'uploads'));
+    }
+
+    // Configuração do multer para salvar arquivos em /uploads
+    const storage = multer.diskStorage({
+      destination: (req, file, cb) => cb(null, path.join(__dirname, 'uploads')),
+      filename: (req, file, cb) => {
+        const nomeUnico = Date.now() + '-' + file.originalname;
+        cb(null, nomeUnico);
+      },
+    });
+
+    const upload = multer({ storage });
+
+    // 📥 POST /relatorioIC - Recebe e salva o PDF
+    app.post('/api/relatorioIC', upload.single('arquivo'), async (req, res) => {
+      const aluno_id = 1; // Depois você pode receber isso do front
+      const filePath = req.file?.path;
+
+      if (!filePath) {
+        return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+      }
+
+      try {
+        const result = await pool.query(
+          'INSERT INTO relatoriosIc (aluno_id, relatorio, relatorio_existe) VALUES ($1, $2, $3) RETURNING *',
+          [aluno_id, filePath, "Sim" ]
+        );
+        res.status(201).json({ mensagem: 'Arquivo enviado com sucesso.', dados: result.rows[0] });
+      } catch (err) {
+        console.error('Erro ao salvar no banco:', err);
+        res.status(500).json({ error: 'Erro ao salvar no banco de dados.' });
+      }
+    });
+
+    // buscar arquivo do aluno
+            app.get('/api/arquivosAlunosIC', verificarToken, async (req, res) => {
+        try {
+          const { id } = req.usuario;
+
+          const result = await pool.query(
+            `SELECT * FROM public.relatoriosIc WHERE aluno_id = $1`,
+            [id]
+          );
+          res.json(result.rows[0]);
+        } catch (error) {
+          console.error('Erro ao buscar arquivo:', error);
+          res.status(500).json({ error: 'Erro ao buscar arquivo' });
+        }
+      });
+
+        // 📥 POST /relatorioIC - Recebe e salva o PDF
+        app.post('/api/relatorioCartaApresIC', upload.single('arquivo'), async (req, res) => {
+          const aluno_id = 1; // Depois você pode receber isso do front
+          const filePath = req.file?.path;
+
+          if (!filePath) {
+            return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+          }
+
+          try {
+            const result = await pool.query(
+              'INSERT INTO relatoriosIc (aluno_id, carta_apresentacao, carta_apresentacao_existe) VALUES ($1, $2, $3) RETURNING *',
+              [aluno_id, filePath, "Sim" ]
+            );
+            res.status(201).json({ mensagem: 'Arquivo enviado com sucesso.', dados: result.rows[0] });
+          } catch (err) {
+            console.error('Erro ao salvar no banco:', err);
+            res.status(500).json({ error: 'Erro ao salvar no banco de dados.' });
+          }
+        });
+
+
+           // 📥 POST /relatorioIC - Recebe e salva o PDF
+        app.post('/api/relatorioCartaApresIC', upload.single('arquivo'), async (req, res) => {
+          const aluno_id = 1; // Depois você pode receber isso do front
+          const filePath = req.file?.path;
+
+          if (!filePath) {
+            return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+          }
+
+          try {
+            const result = await pool.query(
+              'INSERT INTO relatoriosIc (aluno_id, carta_apresentacao, carta_apresentacao_existe) VALUES ($1, $2, $3) RETURNING *',
+              [aluno_id, filePath, "Sim" ]
+            );
+            res.status(201).json({ mensagem: 'Arquivo enviado com sucesso.', dados: result.rows[0] });
+          } catch (err) {
+            console.error('Erro ao salvar no banco:', err);
+            res.status(500).json({ error: 'Erro ao salvar no banco de dados.' });
+          }
+        });
+
+
+            // 📥 POST /relatorioIC - Recebe e salva o PDF
+        app.post('/api/relatorioCartaAvalIC', upload.single('arquivo'), async (req, res) => {
+          const aluno_id = 1; // Depois você pode receber isso do front
+          const filePath = req.file?.path;
+
+          if (!filePath) {
+            return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+          }
+
+          try {
+            const result = await pool.query(
+              'INSERT INTO relatoriosIc (aluno_id, carta_avaliacao, carta_avaliacao_existe) VALUES ($1, $2, $3) RETURNING *',
+              [aluno_id, filePath, "Sim" ]
+            );
+            res.status(201).json({ mensagem: 'Arquivo enviado com sucesso.', dados: result.rows[0] });
+          } catch (err) {
+            console.error('Erro ao salvar no banco:', err);
+            res.status(500).json({ error: 'Erro ao salvar no banco de dados.' });
+          }
+        });
+
+
+
+        //adiciona ep
+        app.post('/api/solicitacao_ep', verificarToken, async (req, res) => {
+          try {
+            const { id } = req.usuario; // aluno_id extraído do token
+            const {
+              nome_da_empresa,
+              municipio_empresa,
+              superior_imediato,
+              tel,
+              email,
+              area_atuacao,
+              data_incio_atuacao,
+              descricao_atividade,
+            } = req.body;
+
+            // Validação: campos obrigatórios
+            //if (!instituicao_centro_pesquisa || !tema || !data_inicial || !data_final || !orientador) {
+             // return res.status(400).json({ error: 'Campos obrigatórios não foram preenchidos.' });
+          //  }
+
+            // Atualiza tabela aluno
+            const alterarModificacaoAluno = await pool.query(
+              `UPDATE public.aluno
+              SET modalidade = $1
+              WHERE id = $2
+              RETURNING *`,
+              ['E. Profissional', id]
+            );
+
+            // Inserir dados na tabela dados_i_cientifico
+            const dadosEP = await pool.query(
+              `INSERT INTO public.dados_e_profissional
+                (aluno_id, nome_da_empresa, municipio_empresa, superior_imediato, tel, 
+                email, area_atuacao,  data_incio_atuacao, descricao_atividade)
+              VALUES 
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+              RETURNING *`,
+              [
+                      id,  
+                      nome_da_empresa,
+                      municipio_empresa,
+                      superior_imediato,
+                      tel,
+                      email,
+                      area_atuacao,
+                      data_incio_atuacao,
+                      descricao_atividade,
+              ]
+            );
+
+            if (alterarModificacaoAluno.rowCount === 0 || dadosEP.rowCount === 0) {
+              return res.status(404).json({ error: 'Dados do aluno não encontrados.' });
+            }
+
+            res.status(200).json({
+              alterarModificacaoAluno: alterarModificacaoAluno.rows[0],
+              alunoAtualizado: dadosIC.rows[0],
+            });
+          } catch (error) {
+            console.error('Erro ao atualizar dados do aluno:', error);
+            res.status(500).json({ error: 'Erro ao atualizar dados do aluno.' });
+          }
+        });
+
+
+        //retira  ep
+        app.put('/api/cancelar_ep_aluno', verificarToken, async (req, res) => {
+          try {
+            const { id } = req.usuario; // aluno_id extraído do token
+
+            // Atualiza tabela aluno
+            const alterarModificacaoAluno = await pool.query(
+              `UPDATE public.aluno
+              SET modalidade = $1
+              WHERE id = $2
+              RETURNING *`,
+              ['Sem Modalidade', id]
+            );
+
+            // Remove os dados da tabela dados_e_profissional
+            const dadosEP = await pool.query(
+              `DELETE FROM public.dados_e_profissional
+              WHERE id = $1
+              RETURNING *`,
+              [id]
+            );
+
+            if (alterarModificacaoAluno.rowCount === 0 || dadosEP.rowCount === 0) {
+              return res.status(404).json({ error: 'Dados do aluno não encontrados.' });
+            }
+
+            res.status(200).json({
+              alunoAtualizado: alterarModificacaoAluno.rows[0],
+              dadosIcRemovidos: dadosIC.rows[0],
+            });
+          } catch (error) {
+            console.error('Erro ao cancelar EP:', error);
+            res.status(500).json({ error: 'Erro ao cancelar EP.' });
+          }
+        });
+
+            // 📥 POST /relatorioEP - Recebe e salva o PDF
+          app.post('/api/relatorioEP', upload.single('arquivo'), async (req, res) => {
+            const aluno_id = 1; // Depois você pode receber isso do front
+            const filePath = req.file?.path;
+
+            if (!filePath) {
+              return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+            }
+
+            try {
+              const result = await pool.query(
+                'INSERT INTO relatoriosEp (aluno_id, RelatorioEp, RelatorioEp_existe) VALUES ($1, $2, $3) RETURNING *',
+                [aluno_id, filePath, "Sim" ]
+              );
+              res.status(201).json({ mensagem: 'Arquivo enviado com sucesso.', dados: result.rows[0] });
+            } catch (err) {
+              console.error('Erro ao salvar no banco:', err);
+              res.status(500).json({ error: 'Erro ao salvar no banco de dados.' });
+            }
+          });
+
+            // 📥 POST /relatorioEP - Recebe e salva o PDF
+          app.post('/api/comprovanteVinculEP', upload.single('arquivo'), async (req, res) => {
+            const aluno_id = 1; // Depois você pode receber isso do front
+            const filePath = req.file?.path;
+
+            if (!filePath) {
+              return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+            }
+
+            try {
+              const result = await pool.query(
+                'INSERT INTO relatoriosEp (aluno_id, ComprovacaoVinc,  ComprovacaoVinc_existe) VALUES ($1, $2, $3) RETURNING *',
+                [aluno_id, filePath, "Sim" ]
+              );
+              res.status(201).json({ mensagem: 'Arquivo enviado com sucesso.', dados: result.rows[0] });
+            } catch (err) {
+              console.error('Erro ao salvar no banco:', err);
+              res.status(500).json({ error: 'Erro ao salvar no banco de dados.' });
+            }
+          });
+
+
+           // 📥 POST /relatorioEP - Recebe e salva o PDF
+          app.post('/api/relatorioCartaApresEp', upload.single('arquivo'), async (req, res) => {
+            const aluno_id = 1; // Depois você pode receber isso do front
+            const filePath = req.file?.path;
+
+            if (!filePath) {
+              return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+            }
+
+            try {
+              const result = await pool.query(
+                'INSERT INTO relatoriosEp (aluno_id, CartaDescricaoAtividades,  CartaDescricaoAtividades_existe) VALUES ($1, $2, $3) RETURNING *',
+                [aluno_id, filePath, "Sim" ]
+              );
+              res.status(201).json({ mensagem: 'Arquivo enviado com sucesso.', dados: result.rows[0] });
+            } catch (err) {
+              console.error('Erro ao salvar no banco:', err);
+              res.status(500).json({ error: 'Erro ao salvar no banco de dados.' });
+            }
+          });
+
+
+           // 📥 POST /relatorioEP - Recebe e salva o PDF
+          app.post('/api/requerimentoEquivEp', upload.single('arquivo'), async (req, res) => {
+            const aluno_id = 1; // Depois você pode receber isso do front
+            const filePath = req.file?.path;
+
+            if (!filePath) {
+              return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+            }
+
+            try {
+              const result = await pool.query(
+                'INSERT INTO relatoriosEp (aluno_id, RequerimentoEquiv,  RequerimentoEquiv_existe) VALUES ($1, $2, $3) RETURNING *',
+                [aluno_id, filePath, "Sim" ]
+              );
+              res.status(201).json({ mensagem: 'Arquivo enviado com sucesso.', dados: result.rows[0] });
+            } catch (err) {
+              console.error('Erro ao salvar no banco:', err);
+              res.status(500).json({ error: 'Erro ao salvar no banco de dados.' });
+            }
+          });
+
+
+ 
 
 
