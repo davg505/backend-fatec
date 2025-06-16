@@ -1082,6 +1082,24 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
           });
 
 
+           // Acesso à tabela dados estagio pelo login do aluno
+          app.get('/api/relatoriosxic', verificarToken, async (req, res) => {
+            try {
+              const { id } = req.usuario; // Decodificado pelo middleware
+
+              const result = await pool.query(
+                'SELECT * FROM public.relatoriosic WHERE aluno_id = $1',
+                [id]
+              );
+
+              res.json(result.rows[0]); // Retorna apenas um aluno
+            } catch (error) {
+              console.error('Erro ao buscar rel ep:', error);
+              res.status(500).json({ error: 'Erro ao buscar dados ic' });
+            }
+          });
+
+
  
 
 
