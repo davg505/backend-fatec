@@ -692,26 +692,7 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
 
     const upload = multer({ storage });
 
-    // 📥 POST /relatorioIC - Recebe e salva o PDF
-    app.post('/api/relatorioIC', upload.single('arquivo'), async (req, res) => {
-      const aluno_id = 1; // Depois você pode receber isso do front
-      const filePath = req.file?.path;
 
-      if (!filePath) {
-        return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
-      }
-
-      try {
-        const result = await pool.query(
-          'INSERT INTO relatoriosIc (aluno_id, relatorio, relatorio_existe) VALUES ($1, $2, $3) RETURNING *',
-          [aluno_id, filePath, "Sim" ]
-        );
-        res.status(201).json({ mensagem: 'Arquivo enviado com sucesso.', dados: result.rows[0] });
-      } catch (err) {
-        console.error('Erro ao salvar no banco:', err);
-        res.status(500).json({ error: 'Erro ao salvar no banco de dados.' });
-      }
-    });
 
     // buscar arquivo do aluno
             app.get('/api/arquivosAlunosIC', verificarToken, async (req, res) => {
@@ -778,7 +759,7 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
 
             );
             res.status(201).json({ mensagem: 'Arquivo enviado com sucesso.', dados: result.rows[0] });
-          } catch (err) {
+          } catch (error) {
             console.error('Erro ao salvar no banco:', err);
             res.status(500).json({ error: 'Erro ao salvar no banco de dados.' });
           }
