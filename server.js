@@ -954,7 +954,7 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
               try {
                 const result = await pool.query(
 
-                   `UPDATE public.aluno
+                   `UPDATE public.relatoriosep
                     SET CartaDescricaoAtividades = $2,
                         CartaDescricaoAtividades_existe = $3
                     WHERE aluno_id = $1
