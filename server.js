@@ -916,7 +916,7 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
 
 
            // 📥 POST /relatorioEP - Recebe e salva o PDF
-            app.post('/api/relatorioCartaApresEp', verificarToken, upload.single('arquivo'), async (req, res) => {
+            app.post('/api/relatorioCartaApresEp', upload.single('arquivo'), async (req, res) => {
              const idAluno = req.body.idAluno; // ⚠️ Isso só vai funcionar se o middleware funcionar corretamente
               const filePath = req.file?.path;
 
