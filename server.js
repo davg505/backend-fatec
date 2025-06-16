@@ -598,6 +598,21 @@ app.post('/api/solicitacao_ic', verificarToken, async (req, res) => {
       ]
     );
 
+    const relatorioIC = await pool.query(
+              `INSERT INTO public.relatoriosic
+                (aluno_id, relatorio_existe, carta_avaliacao_existe, carta_apresentacao_existe)
+              VALUES 
+                ($1, $2, $3, $4)
+              RETURNING *`,
+              [
+                      id,  
+                     'Não',
+                     'Não',
+                     'Não',
+                      
+              ]
+            );
+
     if (alterarModificacaoAluno.rowCount === 0 || dadosIC.rowCount === 0) {
       return res.status(404).json({ error: 'Dados do aluno não encontrados.' });
     }
@@ -605,6 +620,7 @@ app.post('/api/solicitacao_ic', verificarToken, async (req, res) => {
     res.status(200).json({
       alterarModificacaoAluno: alterarModificacaoAluno.rows[0],
       alunoAtualizado: dadosIC.rows[0],
+      relatorioic: relatorioIC.rows[0],
     });
   } catch (error) {
     console.error('Erro ao atualizar dados do aluno:', error);
@@ -630,10 +646,18 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
     // Remove os dados da tabela dados_i_cientifico
     const dadosIC = await pool.query(
       `DELETE FROM public.dados_i_cientifico
-       WHERE id = $1
+       WHERE aluno_id = $1
        RETURNING *`,
       [id]
     );
+
+     // Remove os dados da tabela dados_e_profissional
+            const relatorioIC = await pool.query(
+              `DELETE FROM public.relatoriosic
+              WHERE aluno_id = $1
+              RETURNING *`,
+              [id]
+            );
 
     if (alterarModificacaoAluno.rowCount === 0 || dadosIC.rowCount === 0) {
       return res.status(404).json({ error: 'Dados do aluno não encontrados.' });
@@ -642,6 +666,7 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
     res.status(200).json({
       alunoAtualizado: alterarModificacaoAluno.rows[0],
       dadosIcRemovidos: dadosIC.rows[0],
+      retaIC: relatorioIC.rows[0],
     });
   } catch (error) {
     console.error('Erro ao cancelar IC:', error);
@@ -706,7 +731,7 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
 
         // 📥 POST /relatorioIC - Recebe e salva o PDF
         app.post('/api/relatorioCartaApresIC', upload.single('arquivo'), async (req, res) => {
-          const aluno_id = 1; // Depois você pode receber isso do front
+          const idAluno = req.body.idAluno;
           const filePath = req.file?.path;
 
           if (!filePath) {
@@ -715,8 +740,14 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
 
           try {
             const result = await pool.query(
-              'INSERT INTO relatoriosIc (aluno_id, carta_apresentacao, carta_apresentacao_existe) VALUES ($1, $2, $3) RETURNING *',
-              [aluno_id, filePath, "Sim" ]
+                 `UPDATE public.relatoriosic
+                    SET Carta_apresentacao = $2,
+                        Carta_apresentacao_existe = $3
+                    WHERE aluno_id = $1
+                    RETURNING *`,
+                    [idAluno, filePath, "Sim"]
+
+           
             );
             res.status(201).json({ mensagem: 'Arquivo enviado com sucesso.', dados: result.rows[0] });
           } catch (err) {
