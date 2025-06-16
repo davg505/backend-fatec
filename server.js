@@ -901,7 +901,7 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
 
             // 📥 POST /relatorioEP - Recebe e salva o PDF
           app.post('/api/relatorioEP', upload.single('arquivo'), async (req, res) => {
-            const aluno_id = 1; // Depois você pode receber isso do front
+           const idAluno = req.body.idAluno;
             const filePath = req.file?.path;
 
             if (!filePath) {
@@ -910,8 +910,12 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
 
             try {
               const result = await pool.query(
-                'INSERT INTO relatoriosEp (aluno_id, RelatorioEp, RelatorioEp_existe) VALUES ($1, $2, $3) RETURNING *',
-                [aluno_id, filePath, "Sim" ]
+                 `UPDATE public.relatoriosep
+                    SET Relatorioep = $2,
+                        Relatorioep_existe = $3
+                    WHERE aluno_id = $1
+                    RETURNING *`,
+                    [idAluno, filePath, "Sim"]
               );
               res.status(201).json({ mensagem: 'Arquivo enviado com sucesso.', dados: result.rows[0] });
             } catch (err) {
@@ -922,7 +926,7 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
 
             // 📥 POST /relatorioEP - Recebe e salva o PDF
           app.post('/api/comprovanteVinculEP', upload.single('arquivo'), async (req, res) => {
-            const aluno_id = 1; // Depois você pode receber isso do front
+             const idAluno = req.body.idAluno;
             const filePath = req.file?.path;
 
             if (!filePath) {
@@ -931,8 +935,12 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
 
             try {
               const result = await pool.query(
-                'INSERT INTO relatoriosEp (aluno_id, ComprovacaoVinc,  ComprovacaoVinc_existe) VALUES ($1, $2, $3) RETURNING *',
-                [aluno_id, filePath, "Sim" ]
+                 `UPDATE public.relatoriosep
+                    SET Comprovacaovinc = $2,
+                        Comprovacaovinc_existe = $3
+                    WHERE aluno_id = $1
+                    RETURNING *`,
+                    [idAluno, filePath, "Sim"]
               );
               res.status(201).json({ mensagem: 'Arquivo enviado com sucesso.', dados: result.rows[0] });
             } catch (err) {
@@ -975,7 +983,7 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
 
            // 📥 POST /relatorioEP - Recebe e salva o PDF
           app.post('/api/requerimentoEquivEp', upload.single('arquivo'), async (req, res) => {
-            const { id } = req.usuario; // Decodificado pelo middleware
+            const idAluno = req.body.idAluno; 
             const filePath = req.file?.path;
 
             if (!filePath) {
@@ -984,8 +992,12 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
 
             try {
               const result = await pool.query(
-                'INSERT INTO relatoriosEp (aluno_id, RequerimentoEquiv,  RequerimentoEquiv_existe) VALUES ($1, $2, $3) RETURNING *',
-                [id, filePath, "Sim" ]
+                `UPDATE public.relatoriosep
+                    SET Requerimentoequiv = $2,
+                        Requerimentoequiv_existe = $3
+                    WHERE aluno_id = $1
+                    RETURNING *`,
+                    [idAluno, filePath, "Sim"]
               );
               res.status(201).json({ mensagem: 'Arquivo enviado com sucesso.', dados: result.rows[0] });
             } catch (err) {
