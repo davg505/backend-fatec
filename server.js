@@ -827,7 +827,7 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
 
             res.status(200).json({
               alterarModificacaoAluno: alterarModificacaoAluno.rows[0],
-              alunoAtualizado: dadosIC.rows[0],
+              alunoAtualizado: dadosEP.rows[0],
             });
           } catch (error) {
             console.error('Erro ao atualizar dados do aluno:', error);
@@ -853,7 +853,7 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
             // Remove os dados da tabela dados_e_profissional
             const dadosEP = await pool.query(
               `DELETE FROM public.dados_e_profissional
-              WHERE id = $1
+              WHERE aluno_id = $1
               RETURNING *`,
               [id]
             );
@@ -864,7 +864,7 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
 
             res.status(200).json({
               alunoAtualizado: alterarModificacaoAluno.rows[0],
-              dadosIcRemovidos: dadosIC.rows[0],
+              dadosIcRemovidos: dadosEP.rows[0],
             });
           } catch (error) {
             console.error('Erro ao cancelar EP:', error);
@@ -916,30 +916,34 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
 
 
            // 📥 POST /relatorioEP - Recebe e salva o PDF
-          app.post('/api/relatorioCartaApresEp', upload.single('arquivo'), async (req, res) => {
-            const aluno_id = 1; // Depois você pode receber isso do front
-            const filePath = req.file?.path;
+            app.post('/api/relatorioCartaApresEp', verificarToken, upload.single('arquivo'), async (req, res) => {
+              const { id } = req.usuario; // ⚠️ Isso só vai funcionar se o middleware funcionar corretamente
+              const filePath = req.file?.path;
 
-            if (!filePath) {
-              return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
-            }
+              if (!filePath) {
+                return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+              }
 
-            try {
-              const result = await pool.query(
-                'INSERT INTO relatoriosEp (aluno_id, CartaDescricaoAtividades,  CartaDescricaoAtividades_existe) VALUES ($1, $2, $3) RETURNING *',
-                [aluno_id, filePath, "Sim" ]
-              );
-              res.status(201).json({ mensagem: 'Arquivo enviado com sucesso.', dados: result.rows[0] });
-            } catch (err) {
-              console.error('Erro ao salvar no banco:', err);
-              res.status(500).json({ error: 'Erro ao salvar no banco de dados.' });
-            }
-          });
+              try {
+                const result = await pool.query(
+                  'INSERT INTO relatoriosEp (aluno_id, CartaDescricaoAtividades, CartaDescricaoAtividades_existe) VALUES ($1, $2, $3) RETURNING *',
+                  [id, filePath, "Sim"]
+                );
+
+                res.status(201).json({
+                  mensagem: 'Arquivo enviado com sucesso.',
+                  dados: result.rows[0]
+                });
+              } catch (err) {
+                console.error('Erro ao salvar no banco:', err);
+                res.status(500).json({ error: 'Erro ao salvar no banco de dados.' });
+              }
+            });
 
 
            // 📥 POST /relatorioEP - Recebe e salva o PDF
           app.post('/api/requerimentoEquivEp', upload.single('arquivo'), async (req, res) => {
-            const aluno_id = 1; // Depois você pode receber isso do front
+            const { id } = req.usuario; // Decodificado pelo middleware
             const filePath = req.file?.path;
 
             if (!filePath) {
@@ -949,12 +953,47 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
             try {
               const result = await pool.query(
                 'INSERT INTO relatoriosEp (aluno_id, RequerimentoEquiv,  RequerimentoEquiv_existe) VALUES ($1, $2, $3) RETURNING *',
-                [aluno_id, filePath, "Sim" ]
+                [id, filePath, "Sim" ]
               );
               res.status(201).json({ mensagem: 'Arquivo enviado com sucesso.', dados: result.rows[0] });
             } catch (err) {
               console.error('Erro ao salvar no banco:', err);
               res.status(500).json({ error: 'Erro ao salvar no banco de dados.' });
+            }
+          });
+
+
+          // Acesso à tabela dados estagio pelo login do aluno
+          app.get('/api/ep', verificarToken, async (req, res) => {
+            try {
+              const { id } = req.usuario; // Decodificado pelo middleware
+
+              const result = await pool.query(
+                'SELECT * FROM public.dados_e_profissional WHERE aluno_id = $1',
+                [id]
+              );
+
+              res.json(result.rows[0]); // Retorna apenas um aluno
+            } catch (error) {
+              console.error('Erro ao buscar ep:', error);
+              res.status(500).json({ error: 'Erro ao buscar dados estagio' });
+            }
+          });
+
+          // Acesso à tabela dados estagio pelo login do aluno
+          app.get('/api/ic', verificarToken, async (req, res) => {
+            try {
+              const { id } = req.usuario; // Decodificado pelo middleware
+
+              const result = await pool.query(
+                'SELECT * FROM public.dados_i_cientifico WHERE aluno_id = $1',
+                [id]
+              );
+
+              res.json(result.rows[0]); // Retorna apenas um aluno
+            } catch (error) {
+              console.error('Erro ao buscar ic:', error);
+              res.status(500).json({ error: 'Erro ao buscar dados ic' });
             }
           });
 
