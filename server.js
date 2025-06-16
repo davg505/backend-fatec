@@ -758,8 +758,8 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
 
 
            // 📥 POST /relatorioIC - Recebe e salva o PDF
-        app.post('/api/relatorioCartaApresIC', upload.single('arquivo'), async (req, res) => {
-          const aluno_id = 1; // Depois você pode receber isso do front
+        app.post('/api/relatorioIC', upload.single('arquivo'), async (req, res) => {
+          const idAluno = req.body.idAluno;
           const filePath = req.file?.path;
 
           if (!filePath) {
@@ -768,8 +768,14 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
 
           try {
             const result = await pool.query(
-              'INSERT INTO relatoriosIc (aluno_id, carta_apresentacao, carta_apresentacao_existe) VALUES ($1, $2, $3) RETURNING *',
-              [aluno_id, filePath, "Sim" ]
+
+               `UPDATE public.relatoriosic
+                    SET Relatorio = $2,
+                        Relatorio_existe = $3
+                    WHERE aluno_id = $1
+                    RETURNING *`,
+                    [idAluno, filePath, "Sim"]
+
             );
             res.status(201).json({ mensagem: 'Arquivo enviado com sucesso.', dados: result.rows[0] });
           } catch (err) {
@@ -781,7 +787,7 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
 
             // 📥 POST /relatorioIC - Recebe e salva o PDF
         app.post('/api/relatorioCartaAvalIC', upload.single('arquivo'), async (req, res) => {
-          const aluno_id = 1; // Depois você pode receber isso do front
+          const idAluno = req.body.idAluno;
           const filePath = req.file?.path;
 
           if (!filePath) {
@@ -790,8 +796,13 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
 
           try {
             const result = await pool.query(
-              'INSERT INTO relatoriosIc (aluno_id, carta_avaliacao, carta_avaliacao_existe) VALUES ($1, $2, $3) RETURNING *',
-              [aluno_id, filePath, "Sim" ]
+
+               `UPDATE public.relatoriosic
+                    SET Carta_avaliacao = $2,
+                        Carta_avaliacao_existe = $3
+                    WHERE aluno_id = $1
+                    RETURNING *`,
+                    [idAluno, filePath, "Sim"]
             );
             res.status(201).json({ mensagem: 'Arquivo enviado com sucesso.', dados: result.rows[0] });
           } catch (err) {
