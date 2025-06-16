@@ -821,6 +821,23 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
               ]
             );
 
+             const relatorioEP = await pool.query(
+              `INSERT INTO public.relatoriosep
+                (aluno_id, requerimentoequiv_existe, relatorioep_existe, comprovacaovinc_existe, cartadescricaoatividades_existe)
+              VALUES 
+                ($1, $2, $3, $4, $5)
+              RETURNING *`,
+              [
+                      id,  
+                     'Não',
+                     'Não',
+                     'Não',
+                     'Não',
+                      
+              ]
+            );
+
+
             if (alterarModificacaoAluno.rowCount === 0 || dadosEP.rowCount === 0) {
               return res.status(404).json({ error: 'Dados do aluno não encontrados.' });
             }
@@ -828,6 +845,7 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
             res.status(200).json({
               alterarModificacaoAluno: alterarModificacaoAluno.rows[0],
               alunoAtualizado: dadosEP.rows[0],
+              alunorela: relatorioEP.rows[0],
             });
           } catch (error) {
             console.error('Erro ao atualizar dados do aluno:', error);
@@ -858,6 +876,14 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
               [id]
             );
 
+            // Remove os dados da tabela dados_e_profissional
+            const relatorioEP = await pool.query(
+              `DELETE FROM public.relatoriosep
+              WHERE aluno_id = $1
+              RETURNING *`,
+              [id]
+            );
+
             if (alterarModificacaoAluno.rowCount === 0 || dadosEP.rowCount === 0) {
               return res.status(404).json({ error: 'Dados do aluno não encontrados.' });
             }
@@ -865,6 +891,7 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
             res.status(200).json({
               alunoAtualizado: alterarModificacaoAluno.rows[0],
               dadosIcRemovidos: dadosEP.rows[0],
+               dadosrep: relatorioEP.rows[0],
             });
           } catch (error) {
             console.error('Erro ao cancelar EP:', error);
@@ -926,8 +953,13 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
 
               try {
                 const result = await pool.query(
-                  'INSERT INTO relatoriosEp (aluno_id, CartaDescricaoAtividades, CartaDescricaoAtividades_existe) VALUES ($1, $2, $3) RETURNING *',
-                  [idAluno, filePath, "Sim"]
+
+                   `UPDATE public.aluno
+                    SET CartaDescricaoAtividades = $2,
+                        CartaDescricaoAtividades_existe = $3
+                    WHERE aluno_id = $1
+                    RETURNING *`,
+                    [idAluno, filePath, "Sim"]
                 );
 
                 res.status(201).json({
@@ -993,6 +1025,23 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
               res.json(result.rows[0]); // Retorna apenas um aluno
             } catch (error) {
               console.error('Erro ao buscar ic:', error);
+              res.status(500).json({ error: 'Erro ao buscar dados ic' });
+            }
+          });
+
+          // Acesso à tabela dados estagio pelo login do aluno
+          app.get('/api/relatoriosep', verificarToken, async (req, res) => {
+            try {
+              const { id } = req.usuario; // Decodificado pelo middleware
+
+              const result = await pool.query(
+                'SELECT * FROM public.relatoriosep WHERE aluno_id = $1',
+                [id]
+              );
+
+              res.json(result.rows[0]); // Retorna apenas um aluno
+            } catch (error) {
+              console.error('Erro ao buscar rel ep:', error);
               res.status(500).json({ error: 'Erro ao buscar dados ic' });
             }
           });
