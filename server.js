@@ -917,7 +917,7 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
 
            // 📥 POST /relatorioEP - Recebe e salva o PDF
             app.post('/api/relatorioCartaApresEp', verificarToken, upload.single('arquivo'), async (req, res) => {
-              const { id } = req.usuario; // ⚠️ Isso só vai funcionar se o middleware funcionar corretamente
+             const idAluno = req.body.idAluno; // ⚠️ Isso só vai funcionar se o middleware funcionar corretamente
               const filePath = req.file?.path;
 
               if (!filePath) {
@@ -927,7 +927,7 @@ app.put('/api/cancelar_ic_aluno', verificarToken, async (req, res) => {
               try {
                 const result = await pool.query(
                   'INSERT INTO relatoriosEp (aluno_id, CartaDescricaoAtividades, CartaDescricaoAtividades_existe) VALUES ($1, $2, $3) RETURNING *',
-                  [id, filePath, "Sim"]
+                  [idAluno, filePath, "Sim"]
                 );
 
                 res.status(201).json({
